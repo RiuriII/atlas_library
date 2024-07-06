@@ -1,0 +1,16 @@
+# Ignore environment files
+.env
+.env*
+
+# Ignore Docker-related files
+.dockerignore
+docker-compose*
+
+# Ignore node modules
+node_modules
+
+# Ignore data seed scripts
+db/
+
+# Ignore VS Code configuration files
+.vscode/
