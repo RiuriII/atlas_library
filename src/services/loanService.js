@@ -27,7 +27,7 @@ const checkOverdueLoan = async () => {
             dueDate: dueDate,
             userId: loan.fk_user_id,
             bookId: loan.fk_book_id,
-            lonaId: loan.loan_id
+            loanId: loan.loan_id
           });
           console.log(fine);
           sendEmailNotification(
