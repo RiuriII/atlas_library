@@ -2,7 +2,6 @@ const usersModel = require("../models/usersModel");
 const encryption = require("../services/encryptionService");
 const {
   NotFoundError,
-  UnauthorizedError,
   ConflictError,
   BadRequestError
 } = require("../utils/apiError");
@@ -14,13 +13,13 @@ const validateEmailAddress = (email) => {
 
 const validatePhoneNumber = (number) => {
   const cleanNumber = number.replace(/\D/g, "");
-  const numberRegex = new RegExp("^[0-9]{12,13}$");
+  const numberRegex = new RegExp("^[0-9]{10,11}$");
   return numberRegex.test(cleanNumber);
 };
 
 const createUser = async (req, res) => {
   const user = req.body;
-  user.password = await encryption.encrypt(user.password);
+  const roles = ["admin", "sub-admin", "user"];
 
   if (!validateEmailAddress(user.email)) {
     throw new BadRequestError(
@@ -32,6 +31,19 @@ const createUser = async (req, res) => {
     throw new BadRequestError(
       "Number invalid, please check the number and try again"
     );
+  }
+
+  if (!roles.includes(user.role)) {
+    throw new BadRequestError(
+      "Role invalid, please check the role and try again"
+    );
+  }
+
+  user.password = await encryption.encrypt(user.password);
+  const [userExist] = await usersModel.userExist(user.email);
+
+  if (userExist) {
+    throw new ConflictError("User already exists");
   }
 
   try {
@@ -48,7 +60,6 @@ const createUser = async (req, res) => {
         duplicated_field: fieldName
       });
     }
-    throw error;
   }
 };
 
@@ -103,28 +114,9 @@ const getUserById = async (req, res) => {
   return res.status(200).json(user);
 };
 
-const userExists = async (req, res) => {
-  const { userId } = req.params;
-  const { password } = req.body;
-
-  const [user] = await usersModel.getUserById(userId);
-
-  if (!user) {
-    throw new NotFoundError("User not found, check the id and try again");
-  }
-
-  const validPassword = await encryption.comparePasswords(
-    password,
-    user.password
-  );
-
-  if (!validPassword) {
-    throw new UnauthorizedError("User password does not match");
-  }
-
-  return res
-    .status(200)
-    .json({ message: "User password matches", userId: user.usuario_id });
+const getAll = async (_req, res) => {
+  const users = await usersModel.getAll();
+  return res.status(200).json(users);
 };
 
 module.exports = {
@@ -132,5 +124,5 @@ module.exports = {
   deleteUser,
   getUserById,
   updateUser,
-  userExists
+  getAll
 };
