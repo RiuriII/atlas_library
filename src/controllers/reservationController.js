@@ -1,6 +1,7 @@
 const { checkBookAvailability } = require("../models/booksModel");
 const { ConflictError, NotFoundError } = require("../utils/apiError");
 const reservationModel = require("../models/reservationModel");
+const loanModel = require("../models/loanModel");
 
 const createReservation = async (req, res) => {
   const { bookId, userId } = req.body;
@@ -13,6 +14,19 @@ const createReservation = async (req, res) => {
 
     if (reservationExists.length > 0) {
       throw new ConflictError("Reservation already exists");
+    }
+
+    // Anyone who borrows a book cannot reserve the same book.
+    const LoanExist = await loanModel.getUserLoansById(userId);
+
+    const LoanAlreadyExists = LoanExist.filter(
+      (loan) => loan.fk_book_id == bookId && loan.returned == false
+    );
+
+    if (LoanAlreadyExists.length > 0) {
+      throw new ConflictError(
+        "You have already borrowed this book, so you cannot reserve it"
+      );
     }
 
     const reservation_date = new Date()
