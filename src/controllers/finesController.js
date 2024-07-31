@@ -1,4 +1,8 @@
-const { NotFoundError, ConflictError } = require("../utils/apiError");
+const {
+  NotFoundError,
+  ConflictError,
+  BadRequestError
+} = require("../utils/apiError");
 const { checkBookHasReservation } = require("../models/reservationModel");
 const {
   notifyReservationForReturnedBook
@@ -10,9 +14,7 @@ const fineModel = require("../models/finesModel");
 const createFine = async (req, res) => {
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + Number(process.env.RETURN_INTERVAL_DAYS));
-  console.log(dueDate);
   const amount = Number(process.env.FINE_AMOUNT);
-  console.log(amount);
 
   const fine = await fineModel.createFine({ dueDate, amount, ...req.body });
 
@@ -86,10 +88,29 @@ const getFineById = async (req, res) => {
   return res.status(200).json(fine);
 };
 
+const getFineByUserId = async (req, res) => {
+  const { userId } = req.params;
+  const filterParams = ["paid", "dueDate", "bookId"];
+  const bodyFilterParams = req.body || {};
+
+  for (const param in bodyFilterParams) {
+    if (!filterParams.includes(param)) {
+      throw new BadRequestError(`Field '${param}' is not allowed`);
+    }
+  }
+
+  const fines = await fineModel.getFineByUserId(userId, bodyFilterParams);
+  if (fines.length === 0) {
+    throw new NotFoundError("Fines not found, check id and try again");
+  }
+  return res.status(200).json(fines);
+};
+
 module.exports = {
   createFine,
   paidFine,
   getAllFines,
   getFineById,
-  deleteFine
+  deleteFine,
+  getFineByUserId
 };
