@@ -32,16 +32,6 @@ const createLoan = async (req, res) => {
     availabilityBook.available ||
     (isActiveReservation && availabilityBook.status === "reserved")
   ) {
-    const LoanExists = await loanModel.getUserLoansById(userId);
-
-    const LoanAlreadyExists = LoanExists.filter(
-      (loan) => loan.fk_book_id === bookId && loan.returned === false
-    );
-
-    if (LoanAlreadyExists.length > 0) {
-      throw new ConflictError("Loan already exists");
-    }
-
     const dateLoan = new Date();
     const dateReturnLoan = new Date(dateLoan);
     dateReturnLoan.setDate(
