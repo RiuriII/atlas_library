@@ -9,25 +9,26 @@ const db = require("./connection");
  * @param {string} user.number - The user's phone number.
  * @param {string} user.email - The user's email address.
  * @param {string} user.password - The user's password.
+ * @param {string} user.role - The user's role.
  * @return {Object} - An object containing the ID of the newly created user.
  */
 const createUser = async (user) => {
   const connection = await db.createConnectionPool();
 
-  const { name, whatsapp, number, email, password } = user;
+  const { name, whatsapp, number, email, password, role } = user;
 
   const query = `
-        INSERT INTO users(name, whatsapp, number, email, password) 
-        VALUES(?,?,?,?,?)`;
+        INSERT INTO users(name, whatsapp, number, email, password, role) 
+        VALUES(?,?,?,?,?,?)`;
 
   const [createdUser] = await connection.execute(query, [
     name,
     whatsapp,
     number,
     email,
-    password
+    password,
+    role
   ]);
-
   await db.closeConnectionPool();
 
   return { insertId: createdUser.insertId };
@@ -90,7 +91,8 @@ const deleteUser = async (userId) => {
 const getUserById = async (userId) => {
   const connection = await db.createConnectionPool();
 
-  const query = "SELECT * FROM users WHERE user_id = ?";
+  const query =
+    "SELECT user_id, name, whatsapp, number, email, role FROM users WHERE user_id = ?";
 
   const [User] = await connection.execute(query, [userId]);
 
@@ -99,9 +101,44 @@ const getUserById = async (userId) => {
   return User;
 };
 
+/**
+ * Checks if a user with the given email exists in the database.
+ * @param {string} email - The email address of the user.
+ * @return {Promise<Array>} The user object.
+ */
+const userExist = async (email) => {
+  const connection = await db.createConnectionPool();
+
+  const query = "SELECT * FROM users WHERE email = ?";
+
+  const [user] = await connection.execute(query, [email]);
+
+  await db.closeConnectionPool();
+
+  return user;
+};
+
+/**
+ * Retrieves all users from the database.
+ * @return {Promise<Array>} The user object.
+ */
+const getAll = async () => {
+  const connection = await db.createConnectionPool();
+
+  const [users] = await connection.execute(
+    "SELECT user_id, name, whatsapp, number, email, role FROM users"
+  );
+
+  await db.closeConnectionPool();
+
+  return users;
+};
+
 module.exports = {
   createUser,
   updateUser,
   deleteUser,
-  getUserById
+  getUserById,
+  userExist,
+  getAll
 };

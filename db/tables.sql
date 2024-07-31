@@ -4,11 +4,12 @@ USE library;
 
 CREATE TABLE users (  
     user_id INT PRIMARY KEY AUTO_INCREMENT NOT NULL,
-    name VARCHAR(200) NOT NULL UNIQUE,
+    name VARCHAR(200) NOT NULL,
     whatsapp BOOLEAN NOT NULL,
     number VARCHAR(13) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(256) NOT NULL
+    password VARCHAR(256) NOT NULL,
+    role ENUM('admin','sub-admin', 'user') NOT NULL,
 );
 
 CREATE TABLE authors (
