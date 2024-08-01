@@ -54,7 +54,7 @@ const validateReturnedBodyFine = (req, _res, next) => {
  * @param {import('express').NextFunction} next - The next middleware function.
  */
 const validateBodyFilterFields = (req, _res, next) => {
-  const allowedFields = ["paid", "dueDate"];
+  const allowedFields = ["paid", "dueDate", "bookId"];
 
   const updateFields = req.body;
 
