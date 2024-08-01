@@ -23,4 +23,9 @@ router.all("*", (_req, res) => {
   res.status(200).end();
 });
 
+router.options("*", (_req, res) => {
+  res.header("Allow", "POST, PATCH, DELETE, OPTIONS");
+  res.status(200).end();
+});
+
 module.exports = router;
