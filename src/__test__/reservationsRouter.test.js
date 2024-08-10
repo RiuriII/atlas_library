@@ -2,7 +2,6 @@ const app = require("../app");
 const request = require("supertest");
 const { it, describe, expect, beforeAll } = require("@jest/globals");
 const { createBook, updateBook } = require("../models/booksModel");
-const { createUser } = require("../models/usersModel");
 const { createAuthor } = require("../models/authorsModel");
 const { createCategory } = require("../models/categoriesModel");
 const { createLoan } = require("../models/loanModel");
@@ -11,7 +10,6 @@ describe("Reservations Router", () => {
   let reservationId;
   let authorId;
   let categoryId;
-  let userId;
   let bookId;
   let loanId;
 
@@ -37,29 +35,24 @@ describe("Reservations Router", () => {
       categoryId: categoryId
     }).then((res) => res.insertId);
 
-    userId = await createUser({
-      name: "Donny",
-      email: "donny@j.com",
-      password: "123",
-      whatsapp: false,
-      number: "4797777177"
-    }).then((res) => res.insertId);
-
     loanId = await createLoan({
       bookId,
-      userId,
+      userId: global.subAdminProfile.id,
       dateLoan: new Date(),
       dateReturnLoan: new Date(new Date().setDate(new Date().getDate() + 5))
     }).then((res) => res.insertId);
-    await updateBook(bookId, { status: "reserved", available: false });
+    await updateBook(bookId, { status: "borrowed", available: false });
   });
 
   describe("POST /reservations", () => {
     it("Should create a reservation", async () => {
-      const response = await request(app).post("/reservation").send({
-        bookId,
-        userId
-      });
+      const response = await request(app)
+        .post("/reservation")
+        .auth(global.userProfile.token, { type: "bearer" })
+        .send({
+          bookId,
+          userId: global.userProfile.id
+        });
 
       expect(response.statusCode).toBe(201);
       expect(response.body).toHaveProperty("insertId");
@@ -67,16 +60,22 @@ describe("Reservations Router", () => {
     });
 
     it("Should throw an error if create reservation with invalid field or missing field", async () => {
-      const response = await request(app).post("/reservation").send({
-        invalidField: "invalid"
-      });
+      const response = await request(app)
+        .post("/reservation")
+        .auth(global.userProfile.token, { type: "bearer" })
+        .send({
+          invalidField: "invalid"
+        });
 
       expect(response.statusCode).toBe(400);
       expect(response.body).toHaveProperty("message");
     });
 
     it("Should throw an error if body request is empty", async () => {
-      const response = await request(app).post("/reservation").send({});
+      const response = await request(app)
+        .post("/reservation")
+        .auth(global.userProfile.token, { type: "bearer" })
+        .send({});
 
       expect(response.statusCode).toBe(400);
       expect(response.body).toHaveProperty("message");
@@ -85,21 +84,27 @@ describe("Reservations Router", () => {
 
   describe("GET /reservations", () => {
     it("Should get reservation by id", async () => {
-      const response = await request(app).get(`/reservation/${reservationId}`);
+      const response = await request(app)
+        .get(`/reservation/${reservationId}`)
+        .auth(global.userProfile.token, { type: "bearer" });
 
       expect(response.statusCode).toBe(200);
       expect(response.body[0]).toHaveProperty("reservation_id", reservationId);
     });
 
     it("Should get all reservations", async () => {
-      const response = await request(app).get("/reservations");
+      const response = await request(app)
+        .get("/reservations")
+        .auth(global.adminProfile.token, { type: "bearer" });
 
       expect(response.statusCode).toBe(200);
       expect(response.body[0]).toHaveProperty("reservation_id", reservationId);
     });
 
     it("Should get reservation by user id", async () => {
-      const response = await request(app).get(`/reservation/user/${userId}`);
+      const response = await request(app)
+        .get(`/reservation/user/${global.userProfile.id}`)
+        .auth(global.adminProfile.token, { type: "bearer" });
 
       expect(response.statusCode).toBe(200);
       expect(response.body[0]).toHaveProperty("reservation_id", reservationId);
@@ -114,7 +119,9 @@ describe("Reservations Router", () => {
       ];
 
       for (const route of routes) {
-        const response = await request(app).get(`${route}`);
+        const response = await request(app)
+          .get(`${route}`)
+          .auth(global.adminProfile.token, { type: "bearer" });
 
         expect(response.statusCode).toBe(400);
         expect(response.body).toHaveProperty("message");
@@ -126,15 +133,19 @@ describe("Reservations Router", () => {
     it("Should update a reservation", async () => {
       const response = await request(app)
         .patch(`/reservation/update/${reservationId}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
         .send({ active: false });
+
       expect(response.statusCode).toBe(204);
     });
+
     it("Should throw an error if update reservation with invalid field or blank field", async () => {
       const scenarios = [{ invalidField: "invalid" }, { active: "" }];
 
       for (const scenario of scenarios) {
         const response = await request(app)
           .patch(`/reservation/update/${reservationId}`)
+          .auth(global.adminProfile.token, { type: "bearer" })
           .send(scenario);
 
         expect(response.statusCode).toBe(400);
@@ -147,6 +158,7 @@ describe("Reservations Router", () => {
     it("Should throw an erros if reservation id is not a number or is blank", async () => {
       const response = await request(app)
         .del("/reservation")
+        .auth(global.userProfile.token, { type: "bearer" })
         .query({
           reservationId: ["abc", ""]
         });
@@ -156,17 +168,45 @@ describe("Reservations Router", () => {
     });
 
     it("Should throw an error if reservation id not found", async () => {
-      const response = await request(app).del(
-        `/reservation/${reservationId + 1}`
-      );
+      const response = await request(app)
+        .del(`/reservation/${reservationId + 1}`)
+        .auth(global.userProfile.token, { type: "bearer" });
       expect(response.statusCode).toBe(404);
       expect(response.body).toHaveProperty("message");
     });
 
     it("Should delete  a reservation", async () => {
-      const response = await request(app).del(`/reservation/${reservationId}`);
+      const response = await request(app)
+        .del(`/reservation/${reservationId}`)
+        .auth(global.userProfile.token, { type: "bearer" });
 
       expect(response.statusCode).toBe(204);
+    });
+  });
+
+  describe("Authorization Errors in Reservation  Router", () => {
+    const routes = [
+      {
+        method: "get",
+        url: "/reservations",
+        header: global.userProfile.token
+      },
+      {
+        method: "patch",
+        url: "/reservation/update/1",
+        header: global.userProfile.token,
+        body: { active: false }
+      }
+    ];
+
+    routes.forEach((route) => {
+      it(`should return 401 for unauthorized access to ${route.method.toUpperCase()} ${route.url}`, async () => {
+        const response = await request(app)
+          [route.method](route.url)
+          .auth(route.header)
+          .send(route.body || {});
+        expect(response.status).toBe(401);
+      });
     });
   });
 });

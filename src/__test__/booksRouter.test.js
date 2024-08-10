@@ -10,7 +10,10 @@ describe("Books Router", () => {
   let categoryId;
 
   const testBookRouterWithError = async (scenario, method, url) => {
-    const response = await request(app)[method](url).send(scenario);
+    const response = await request(app)
+      [method](url)
+      .auth(global.adminProfile.token, { type: "bearer" })
+      .send(scenario);
     return response.status === 400 && response.body.message !== undefined;
   };
 
@@ -39,7 +42,10 @@ describe("Books Router", () => {
         categoryId: categoryId
       };
 
-      const response = await request(app).post("/book").send(bookData);
+      const response = await request(app)
+        .post("/book")
+        .auth(global.adminProfile.token, { type: "bearer" })
+        .send(bookData);
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("insertId");
 
@@ -61,17 +67,20 @@ describe("Books Router", () => {
     });
 
     it("Should throw an error if user already exists", async () => {
-      const response = await request(app).post("/book").send({
-        title: "The Lord of the Rings",
-        publication_year: 1954,
-        available: true,
-        status: "available",
-        rating: 4.5,
-        quantity: 10,
-        description: "A book about the Lord of the Rings",
-        authorId: authorId,
-        categoryId: categoryId
-      });
+      const response = await request(app)
+        .post("/book")
+        .auth(global.adminProfile.token, { type: "bearer" })
+        .send({
+          title: "The Lord of the Rings",
+          publication_year: 1954,
+          available: true,
+          status: "available",
+          rating: 4.5,
+          quantity: 10,
+          description: "A book about the Lord of the Rings",
+          authorId: authorId,
+          categoryId: categoryId
+        });
 
       expect(response.status).toBe(409);
       expect(response.body).toHaveProperty("message");
@@ -101,6 +110,24 @@ describe("Books Router", () => {
       });
     });
 
+    it("Should verify if book is available", async () => {
+      const response = await request(app).get(`/book/availability/${bookId}`);
+      expect(response.status).toBe(200);
+      expect(response.body.book).toEqual({
+        title: "The Lord of the Rings",
+        available: 1,
+        status: "available"
+      });
+    });
+
+    it("Should throw an error if book id is not a number or is blank", async () => {
+      const response = await request(app)
+        .get("/book/")
+        .query({ bookId: ["abc", ""] });
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("message");
+    });
+
     it("Should throw an error if book not found", async () => {
       const response = await request(app).get(`/book/${bookId + 1}`);
       expect(response.status).toBe(404);
@@ -110,16 +137,20 @@ describe("Books Router", () => {
 
   describe("PATCH /book", () => {
     it("Should update a book", async () => {
-      const response = await request(app).patch(`/book/${bookId}/update`).send({
-        title: "The Lord of the Onions",
-        publication_year: 1955
-      });
+      const response = await request(app)
+        .patch(`/book/update/${bookId}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
+        .send({
+          title: "The Lord of the Onions",
+          publication_year: 1955
+        });
       expect(response.status).toBe(204);
     });
 
     it("Should throw an error if book not found in update", async () => {
       const response = await request(app)
-        .patch(`/book/${bookId + 1}/update`)
+        .patch(`/book/update/${bookId + 1}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
         .send({
           title: "The Lord of the Onions",
           publication_year: 1955
@@ -129,21 +160,23 @@ describe("Books Router", () => {
     });
 
     it("Should throw an error if book id is not a number or is blank", async () => {
-      const bookIds = ["abc", ""];
+      const response = await request(app)
+        .patch("/book/update/")
+        .auth(global.adminProfile.token, { type: "bearer" })
+        .query({ bookId: ["adb", ""] });
 
-      for (const id of bookIds) {
-        const response = await request(app).patch(`/book/${id}/update`);
-
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty("message");
-      }
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty("message");
     });
 
     it("Should throw an error if update with invalid field", async () => {
-      const response = await request(app).patch(`/book/${bookId}/update`).send({
-        title: "The Lord of the Onions",
-        invalidField: "invalid"
-      });
+      const response = await request(app)
+        .patch(`/book/update/${bookId}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
+        .send({
+          title: "The Lord of the Onions",
+          invalidField: "invalid"
+        });
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("message");
@@ -152,7 +185,9 @@ describe("Books Router", () => {
 
   describe("DELETE /book", () => {
     it("Should throw an error if book not found in delete", async () => {
-      const response = await request(app).del(`/book/${bookId + 1}`);
+      const response = await request(app)
+        .del(`/book/${bookId + 1}`)
+        .auth(global.adminProfile.token, { type: "bearer" });
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty("message");
@@ -161,6 +196,7 @@ describe("Books Router", () => {
     it("Should throw an error if book id is not a number or is blank", async () => {
       const response = await request(app)
         .del("/book")
+        .auth(global.adminProfile.token, { type: "bearer" })
         .query({ bookId: ["abc", ""] });
 
       expect(response.status).toBe(400);
@@ -168,8 +204,48 @@ describe("Books Router", () => {
     });
 
     it("Should delete a book", async () => {
-      const response = await request(app).del(`/book/${bookId}`);
+      const response = await request(app)
+        .del(`/book/${bookId}`)
+        .auth(global.adminProfile.token, { type: "bearer" });
       expect(response.status).toBe(204);
+    });
+  });
+
+  describe("Authorization Errors in Author Router", () => {
+    const routes = [
+      {
+        method: "post",
+        url: "/book",
+        header: global.userProfile.token,
+        body: {
+          title: "The Lord of the Rings",
+          publication_year: "1954",
+          available: 1,
+          status: "available",
+          rating: "4.5",
+          quantity: 10,
+          description: "A book about the Lord of the Rings",
+          fk_author_id: authorId,
+          fk_category_id: categoryId
+        }
+      },
+      { method: "delete", url: "/book/1", header: global.userProfile.token },
+      {
+        method: "patch",
+        url: "/book/update/1",
+        header: global.userProfile.token,
+        body: { title: "Updated Name" }
+      }
+    ];
+
+    routes.forEach((route) => {
+      it(`should return 401 for unauthorized access to ${route.method.toUpperCase()} ${route.url}`, async () => {
+        const response = await request(app)
+          [route.method](route.url)
+          .auth(route.header)
+          .send(route.body || {});
+        expect(response.status).toBe(401);
+      });
     });
   });
 });

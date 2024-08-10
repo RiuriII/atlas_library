@@ -6,7 +6,10 @@ describe("Authors Router", () => {
   let authorId;
 
   const testAuthorRouterWithError = async (scenario, method, url) => {
-    const response = await request(app)[method](url).send(scenario);
+    const response = await request(app)
+      [method](url)
+      .auth(global.adminProfile.token, { type: "bearer" })
+      .send(scenario);
     return response.status === 400 && response.body.message !== undefined;
   };
 
@@ -14,7 +17,9 @@ describe("Authors Router", () => {
     it("should create an author", async () => {
       const response = await request(app)
         .post("/author")
+        .auth(global.adminProfile.token, { type: "bearer" })
         .send({ name: "John Doe", about: "Author description" });
+
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty("insertId");
       authorId = response.body.insertId;
@@ -35,8 +40,9 @@ describe("Authors Router", () => {
 
   describe("GET /author", () => {
     it("should get all authors", async () => {
-      const response = await request(app).get("/authors");
-      console.log("authors: ", response.body);
+      const response = await request(app)
+        .get("/authors")
+        .auth(global.adminProfile.token, { type: "bearer" });
       expect(response.status).toBe(200);
     });
 
@@ -70,6 +76,7 @@ describe("Authors Router", () => {
     it("should update an author", async () => {
       const response = await request(app)
         .patch(`/author/update/${authorId}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
         .send({ name: "Jane Doe" });
       expect(response.status).toBe(204);
     });
@@ -93,6 +100,7 @@ describe("Authors Router", () => {
     it("Should throw an error if author name is duplicate", async () => {
       const response = await request(app)
         .patch(`/author/update/${authorId}`)
+        .auth(global.adminProfile.token, { type: "bearer" })
         .send({ name: "Jane Doe" });
       expect(response.status).toBe(409);
       expect(response.body).toHaveProperty("message");
@@ -101,7 +109,9 @@ describe("Authors Router", () => {
 
   describe("DELETE /author", () => {
     it("Should throw an error if author not found in delete", async () => {
-      const response = await request(app).del(`/author/${authorId + 1}`);
+      const response = await request(app)
+        .del(`/author/${authorId + 1}`)
+        .auth(global.adminProfile.token, { type: "bearer" });
 
       expect(response.status).toBe(404);
       expect(response.body).toHaveProperty("message");
@@ -109,7 +119,8 @@ describe("Authors Router", () => {
 
     it("Should throw an error if author id is not a number or is blank", async () => {
       const response = await request(app)
-        .del("/author")
+        .del("/author/")
+        .auth(global.adminProfile.token, { type: "bearer" })
         .query({ authorId: ["abc", ""] });
 
       expect(response.status).toBe(400);
@@ -117,9 +128,40 @@ describe("Authors Router", () => {
     });
 
     it("should delete an author", async () => {
-      const response = await request(app).del(`/author/${authorId}`);
+      const response = await request(app)
+        .del(`/author/${authorId}`)
+        .auth(global.adminProfile.token, { type: "bearer" });
 
       expect(response.status).toBe(204);
+    });
+  });
+
+  describe("Authorization Errors in Author Router", () => {
+    const routes = [
+      { method: "get", url: "/authors", header: global.userProfile.token },
+      {
+        method: "post",
+        url: "/author",
+        header: global.userProfile.token,
+        body: { name: "Test Author" }
+      },
+      { method: "delete", url: "/author/1", header: global.userProfile.token },
+      {
+        method: "patch",
+        url: "/author/update/1",
+        header: global.userProfile.token,
+        body: { name: "Updated Name" }
+      }
+    ];
+
+    routes.forEach((route) => {
+      it(`should return 401 for unauthorized access to ${route.method.toUpperCase()} ${route.url}`, async () => {
+        const response = await request(app)
+          [route.method](route.url)
+          .auth(route.header)
+          .send(route.body || {});
+        expect(response.status).toBe(401);
+      });
     });
   });
 });
