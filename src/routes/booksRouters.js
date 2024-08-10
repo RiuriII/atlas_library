@@ -41,7 +41,7 @@ router.get("/book", (_req, _res) => {
 });
 
 router.patch(
-  "/book/:bookId/update",
+  "/book/update/:bookId",
   genericMiddlewares.validateParamId.bind(null, "bookId"),
   booksMiddlewares.validateBookBodyUpdatedFields,
   authMiddlewares.verifyToken,
@@ -49,12 +49,12 @@ router.patch(
   booksController.updateBook
 );
 
-router.patch("/book/?/update", (_req, _res) => {
+router.patch("/book/update/", (_req, _res) => {
   throw new BadRequestError("Missing 'bookId' parameter in the query");
 });
 
 router.get(
-  "/book/:bookId/availability",
+  "/book/availability/:bookId",
   genericMiddlewares.validateParamId.bind(null, "bookId"),
   booksController.checkBookAvailability
 );

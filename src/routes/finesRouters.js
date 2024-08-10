@@ -27,6 +27,7 @@ router.delete(
 
 router.get(
   "/fine/:fineId",
+  authMiddlewares.verifyToken,
   genericMiddlewares.validateParamId.bind(null, "fineId"),
   finesController.getFineById
 );
@@ -37,9 +38,9 @@ router.get("/fine", (_req, _res) => {
 
 router.get(
   "/fines",
-  finesController.getAllFines,
   authMiddlewares.verifyToken,
-  authMiddlewares.authorize.bind(null, ["admin", "sub-admin"])
+  authMiddlewares.authorize.bind(null, ["admin", "sub-admin"]),
+  finesController.getAllFines
 );
 
 router.patch(
@@ -55,7 +56,6 @@ router.post(
   "/fine/user/:userId",
   finesMiddlewares.validateBodyFilterFields,
   authMiddlewares.verifyToken,
-  authMiddlewares.authorize,
   finesController.getFineByUserId
 );
 
