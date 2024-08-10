@@ -20,7 +20,7 @@ async function createConnectionPool() {
   });
 
   connection.on("error", (err) => {
-    console.error("Erro na conexão com o banco de dados:", err);
+    console.error("Error connecting to the database:", err);
   });
 
   return connection;
