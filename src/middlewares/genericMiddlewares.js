@@ -89,11 +89,19 @@ const validateBodyRequiredFields = (fields, req, _res, next) => {
     );
   }
 
+  const invalidFields = bodyKeys.filter((field) => !bodyParams.includes(field));
+
+  if (invalidFields.length > 0) {
+    throw new BadRequestError(
+      `The following fields are invalid: ${invalidFields.join(", ")}`
+    );
+  }
+
   for (let index = 0; index < bodyKeys.length; index++) {
     if (
       !(
         bodyKeys.includes(bodyParams[index]) &&
-        String(body[bodyParams[index]]).trim().length >= 1
+        String(body[bodyParams[index]] ?? "").trim().length >= 1
       )
     ) {
       throw new BadRequestError(
